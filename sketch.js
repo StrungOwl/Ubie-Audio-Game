@@ -89,19 +89,6 @@ function preload() {
 }
 
 // ============================================================
-//  UPSCALE SPRITES — reduces pixelation on lo-res art
-// ============================================================
-function upscaleSprite(img, s) {
-  let g = createGraphics(img.width * s, img.height * s);
-  g.drawingContext.imageSmoothingEnabled = true;
-  g.drawingContext.imageSmoothingQuality = "high";
-  g.image(img, 0, 0, g.width, g.height);
-  let out = g.get();
-  g.remove();
-  return out;
-}
-
-// ============================================================
 //  SETUP
 // ============================================================
 function setup() {
@@ -114,17 +101,10 @@ function setup() {
   mic = new p5.AudioIn();
   mic.start();
 
-  imgW = width * 0.12;
+  imgW = width * 0.065;
   imgH = imgW / RATIO;
   groundY = height * 0.82;
   gravity = height * 0.0006;
-
-  // Upscale all sprites 3x for smoother rendering
-  let up = 3;
-  ubie = upscaleSprite(ubie, up);
-  for (let i = 0; i < ubieR.length; i++) ubieR[i] = upscaleSprite(ubieR[i], up);
-  for (let i = 0; i < ubieJ.length; i++) ubieJ[i] = upscaleSprite(ubieJ[i], up);
-  for (let i = 0; i < ubieRo.length; i++) ubieRo[i] = upscaleSprite(ubieRo[i], up);
 
   playerX = width * 0.15;
   playerY = groundY;
@@ -536,17 +516,54 @@ function drawGrass() {
 function drawTitleScreen() {
   titleBounce += 0.04;
 
-  // Draw Ubie in the center, gently bouncing
-  let titleUbieY = height * 0.45 + sin(titleBounce) * 15;
-  let titleUbieSize = imgW * 1.8;
-  drawingContext.imageSmoothingEnabled = true;
-  drawingContext.imageSmoothingQuality = "high";
-  image(ubie, width * 0.5, titleUbieY, titleUbieSize, titleUbieSize / RATIO);
+  // Draw Ubie in the center, smaller + with a backdrop
+  let titleUbieY = height * 0.48 + sin(titleBounce) * 10;
+  let titleUbieSize = imgW * 1.3;
 
-  // Glow behind Ubie
+  // Circular backdrop behind Ubie
+  let bgRadius = titleUbieSize * 2.8;
+  let bgPulse = sin(titleBounce * 1.5) * 0.02;
   noStroke();
-  fill(40, 70, 100, 0.05 + sin(titleBounce * 2) * 0.03);
-  circle(width * 0.5, titleUbieY, titleUbieSize * 2.5);
+
+  // Outer soft ring
+  fill(240, 40, 50, 0.06 + bgPulse);
+  circle(width * 0.5, titleUbieY, bgRadius * 1.6);
+
+  // Mid ring — slightly brighter
+  fill(260, 35, 40, 0.1 + bgPulse);
+  circle(width * 0.5, titleUbieY, bgRadius * 1.2);
+
+  // Inner solid circle
+  fill(250, 30, 22, 0.85);
+  circle(width * 0.5, titleUbieY, bgRadius);
+
+  // Inner rim highlight
+  noFill();
+  stroke(200, 40, 70, 0.15);
+  strokeWeight(2);
+  circle(width * 0.5, titleUbieY, bgRadius * 0.95);
+
+  // Subtle radial accent lines
+  stroke(220, 30, 60, 0.06);
+  strokeWeight(1);
+  for (let a = 0; a < TWO_PI; a += PI / 6) {
+    let inner = bgRadius * 0.35;
+    let outer = bgRadius * 0.48;
+    line(
+      width * 0.5 + cos(a + titleBounce * 0.3) * inner,
+      titleUbieY + sin(a + titleBounce * 0.3) * inner,
+      width * 0.5 + cos(a + titleBounce * 0.3) * outer,
+      titleUbieY + sin(a + titleBounce * 0.3) * outer
+    );
+  }
+
+  // Warm glow behind Ubie
+  noStroke();
+  fill(40, 70, 100, 0.04 + sin(titleBounce * 2) * 0.02);
+  circle(width * 0.5, titleUbieY, titleUbieSize * 2);
+
+  // Ubie sprite
+  image(ubie, width * 0.5, titleUbieY, titleUbieSize, titleUbieSize / RATIO);
 
   // Title
   textAlign(CENTER, CENTER);
@@ -725,9 +742,6 @@ function drawPlayer() {
     scale(-1, 1);
   }
 
-  // Render Ubie with smooth interpolation to reduce pixelation
-  drawingContext.imageSmoothingEnabled = true;
-  drawingContext.imageSmoothingQuality = "high";
   image(sprite, 0, 0, imgW, imgH);
   pop();
 }
@@ -1029,7 +1043,7 @@ function keyPressed() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  imgW = width * 0.12;
+  imgW = width * 0.065;
   imgH = imgW / RATIO;
   groundY = height * 0.82;
   gravity = height * 0.0006;
