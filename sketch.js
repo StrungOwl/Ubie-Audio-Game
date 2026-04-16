@@ -89,6 +89,19 @@ function preload() {
 }
 
 // ============================================================
+//  UPSCALE SPRITES — reduces pixelation on lo-res art
+// ============================================================
+function upscaleSprite(img, s) {
+  let g = createGraphics(img.width * s, img.height * s);
+  g.drawingContext.imageSmoothingEnabled = true;
+  g.drawingContext.imageSmoothingQuality = "high";
+  g.image(img, 0, 0, g.width, g.height);
+  let out = g.get();
+  g.remove();
+  return out;
+}
+
+// ============================================================
 //  SETUP
 // ============================================================
 function setup() {
@@ -106,15 +119,26 @@ function setup() {
   groundY = height * 0.82;
   gravity = height * 0.0006;
 
+  // Upscale all sprites 3x for smoother rendering
+  let up = 3;
+  ubie = upscaleSprite(ubie, up);
+  for (let i = 0; i < ubieR.length; i++) ubieR[i] = upscaleSprite(ubieR[i], up);
+  for (let i = 0; i < ubieJ.length; i++) ubieJ[i] = upscaleSprite(ubieJ[i], up);
+  for (let i = 0; i < ubieRo.length; i++) ubieRo[i] = upscaleSprite(ubieRo[i], up);
+
   playerX = width * 0.15;
   playerY = groundY;
 
   // Init volume history
   for (let i = 0; i < VOL_HISTORY_LEN; i++) volHistory.push(0);
 
+  // Enable smooth image rendering
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.imageSmoothingQuality = "high";
+
   // Generate background elements
   generateStars();
-  generateClouds();
+  generateShips();
   generateMountains();
   generateGrass();
   spawnOrbs();
@@ -137,15 +161,21 @@ function generateStars() {
   }
 }
 
-function generateClouds() {
-  clouds = [];
-  for (let i = 0; i < 8; i++) {
-    clouds.push({
+function generateShips() {
+  ships = [];
+  let shipTypes = ["arrow", "diamond", "wedge", "tri", "cruiser"];
+  for (let i = 0; i < 7; i++) {
+    ships.push({
       x: random(width),
-      y: random(height * 0.08, height * 0.35),
-      w: random(width * 0.1, width * 0.25),
-      speed: random(0.15, 0.5),
-      opacity: random(0.03, 0.08)
+      y: random(height * 0.05, height * 0.4),
+      size: random(12, 35),
+      speed: random(0.3, 1.2),
+      type: random(shipTypes),
+      hue: random([180, 200, 260, 300, 340, 40]),
+      enginePhase: random(TWO_PI),
+      wobble: random(0.01, 0.03),
+      wobbleAmp: random(0.3, 1.2),
+      opacity: random(0.4, 0.85)
     });
   }
 }
@@ -289,7 +319,7 @@ function draw() {
   applyShake();
 
   drawStars();
-  drawClouds();
+  drawShips();
   drawMountains();
 
   // --- State Machine ---
@@ -364,15 +394,96 @@ function drawStars() {
   }
 }
 
-function drawClouds() {
-  noStroke();
-  for (let c of clouds) {
-    c.x -= c.speed;
-    if (c.x + c.w < 0) c.x = width + c.w;
-    fill(240, 20, 90, c.opacity);
-    ellipse(c.x, c.y, c.w, c.w * 0.35);
-    ellipse(c.x + c.w * 0.2, c.y - c.w * 0.08, c.w * 0.7, c.w * 0.3);
-    ellipse(c.x - c.w * 0.15, c.y + c.w * 0.04, c.w * 0.5, c.w * 0.25);
+function drawShips() {
+  for (let s of ships) {
+    s.x -= s.speed;
+    s.y += sin(frameCount * s.wobble) * s.wobbleAmp;
+    if (s.x + s.size < -50) {
+      s.x = width + 50;
+      s.y = random(height * 0.05, height * 0.4);
+    }
+
+    let sz = s.size;
+    let engineGlow = (sin(frameCount * 0.15 + s.enginePhase) + 1) * 0.5;
+
+    push();
+    translate(s.x, s.y);
+
+    // Engine glow trail
+    noStroke();
+    fill(s.hue, 80, 100, s.opacity * 0.08 * (0.5 + engineGlow * 0.5));
+    ellipse(sz * 0.8, 0, sz * 2.5, sz * 0.5);
+    fill(s.hue, 60, 100, s.opacity * 0.15 * (0.5 + engineGlow * 0.5));
+    ellipse(sz * 0.5, 0, sz * 1.2, sz * 0.3);
+
+    // Ship body
+    stroke(s.hue, 40, 80, s.opacity * 0.6);
+    strokeWeight(1);
+    fill(s.hue, 30, 20, s.opacity * 0.7);
+
+    switch (s.type) {
+      case "arrow":
+        // Sleek arrow ship
+        triangle(-sz * 0.5, 0, sz * 0.4, -sz * 0.3, sz * 0.4, sz * 0.3);
+        // Cockpit
+        fill(s.hue, 50, 90, s.opacity * 0.8);
+        noStroke();
+        ellipse(-sz * 0.15, 0, sz * 0.2, sz * 0.12);
+        break;
+
+      case "diamond":
+        // Diamond-shaped craft
+        quad(-sz * 0.5, 0, 0, -sz * 0.25, sz * 0.3, 0, 0, sz * 0.25);
+        // Wing lines
+        stroke(s.hue, 50, 60, s.opacity * 0.5);
+        line(-sz * 0.1, -sz * 0.15, sz * 0.15, -sz * 0.22);
+        line(-sz * 0.1, sz * 0.15, sz * 0.15, sz * 0.22);
+        break;
+
+      case "wedge":
+        // Flat wedge
+        beginShape();
+        vertex(-sz * 0.5, -sz * 0.05);
+        vertex(-sz * 0.5, sz * 0.05);
+        vertex(sz * 0.4, sz * 0.35);
+        vertex(sz * 0.5, 0);
+        vertex(sz * 0.4, -sz * 0.35);
+        endShape(CLOSE);
+        // Center line
+        stroke(s.hue, 60, 70, s.opacity * 0.4);
+        line(-sz * 0.4, 0, sz * 0.3, 0);
+        break;
+
+      case "tri":
+        // Simple triangle ship
+        triangle(-sz * 0.4, -sz * 0.2, -sz * 0.4, sz * 0.2, sz * 0.4, 0);
+        // Dot cockpit
+        fill(s.hue, 40, 100, s.opacity * 0.9);
+        noStroke();
+        circle(0, 0, sz * 0.1);
+        break;
+
+      case "cruiser":
+        // Longer cruiser shape
+        noStroke();
+        fill(s.hue, 30, 20, s.opacity * 0.7);
+        rect(-sz * 0.5, -sz * 0.08, sz, sz * 0.16, 2);
+        // Fins
+        fill(s.hue, 40, 30, s.opacity * 0.6);
+        triangle(sz * 0.2, -sz * 0.08, sz * 0.5, -sz * 0.08, sz * 0.4, -sz * 0.28);
+        triangle(sz * 0.2, sz * 0.08, sz * 0.5, sz * 0.08, sz * 0.4, sz * 0.28);
+        // Bridge
+        fill(s.hue, 50, 80, s.opacity * 0.7);
+        rect(-sz * 0.3, -sz * 0.04, sz * 0.15, sz * 0.08, 1);
+        break;
+    }
+
+    // Engine thruster dot
+    noStroke();
+    fill(s.hue, 70, 100, s.opacity * (0.4 + engineGlow * 0.6));
+    circle(sz * 0.45, 0, sz * 0.08 + engineGlow * sz * 0.06);
+
+    pop();
   }
 }
 
@@ -428,6 +539,8 @@ function drawTitleScreen() {
   // Draw Ubie in the center, gently bouncing
   let titleUbieY = height * 0.45 + sin(titleBounce) * 15;
   let titleUbieSize = imgW * 1.8;
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.imageSmoothingQuality = "high";
   image(ubie, width * 0.5, titleUbieY, titleUbieSize, titleUbieSize / RATIO);
 
   // Glow behind Ubie
@@ -612,6 +725,9 @@ function drawPlayer() {
     scale(-1, 1);
   }
 
+  // Render Ubie with smooth interpolation to reduce pixelation
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.imageSmoothingQuality = "high";
   image(sprite, 0, 0, imgW, imgH);
   pop();
 }
@@ -918,7 +1034,7 @@ function windowResized() {
   groundY = height * 0.82;
   gravity = height * 0.0006;
   generateStars();
-  generateClouds();
+  generateShips();
   generateMountains();
   generateGrass();
 }
