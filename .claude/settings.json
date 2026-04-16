@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(npm *)",
+      "Bash(node *)",
+      "Bash(grep *)",
+      "Bash(cat *)"
+    ]
+  }
+}
