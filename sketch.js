@@ -104,7 +104,7 @@ function setup() {
   imgW = width * 0.065;
   imgH = imgW / RATIO;
   groundY = height * 0.82;
-  gravity = height * 0.0006;
+  gravity = height * 0.00015;
 
   playerX = width * 0.15;
   playerY = groundY;
